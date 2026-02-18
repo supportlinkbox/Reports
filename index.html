@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkBox Admin Reports - Fixed</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0a0a0f; --bg-secondary: #12121a; --bg-card: #1a1a2e;
+            --border: #2a2a4a; --accent: #6c63ff; --danger: #ff4757;
+            --success: #2ed573; --text-primary: #e8e8f0; --text-secondary: #8888aa;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+        .hidden { display: none !important; }
+
+        /* Login UI */
+        .login-container { height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { background: var(--bg-secondary); border: 1px solid var(--border); padding: 40px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-box h1 { margin-bottom: 20px; color: var(--accent); }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary); }
+        .form-group input, .form-group select, .form-group textarea { 
+            width: 100%; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); 
+            border-radius: 10px; color: white; outline: none; transition: 0.3s;
+        }
+        .form-group input:focus { border-color: var(--accent); }
+
+        /* Main App UI */
+        nav { background: var(--bg-secondary); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); sticky; top: 0; z-index: 100; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.3s; width: 100%; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        /* Tabs & List */
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; background: var(--bg-secondary); padding: 5px; border-radius: 12px; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; color: var(--text-secondary); }
+        .tab.active { background: var(--accent); color: white; }
+        .report-card { background: var(--bg-secondary); border: 1px solid var(--border); padding: 20px; border-radius: 15px; margin-bottom: 15px; }
+        .card-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .reason-tag { background: rgba(108, 99, 255, 0.2); color: var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+
+        /* Toast & Loader */
+        .toast { position: fixed; top: 20px; right: 20px; background: var(--bg-card); border-left: 4px solid var(--accent); padding: 15px 25px; border-radius: 8px; z-index: 1000; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .loader-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 999; }
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="loader-overlay hidden">
+        <div style="color: white;">প্রসেস হচ্ছে...</div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <h1>LinkBox Admin</h1>
+            <p style="margin-bottom: 20px; color: var(--text-secondary);">লগইন করুন</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>ইমেইল</label>
+                    <input type="email" id="email" placeholder="admin@linkbox.com" required>
+                </div>
+                <div class="form-group">
+                    <label>পাসওয়ার্ড</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary">লগইন করুন</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app" class="hidden">
+        <nav>
+            <div style="font-weight: bold; font-size: 20px;">📋 LinkBox Reports</div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span id="adminName" style="font-size: 14px; color: var(--text-secondary);"></span>
+                <button onclick="logout()" style="background: none; border: none; color: var(--danger); cursor: pointer;">Logout</button>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div class="tabs">
+                <div class="tab active" id="tab1" onclick="switchTab('submit')">নতুন রিপোর্ট</div>
+                <div class="tab" id="tab2" onclick="switchTab('list')">সক্রিয় লিস্ট</div>
+                <div class="tab" id="tab3" onclick="switchTab('history')">ইতিহাস</div>
+            </div>
+
+            <div id="submitSection">
+                <div class="login-box" style="max-width: 100%; text-align: left;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button onclick="toggleMode('single')" id="mSingle" class="btn btn-primary" style="flex: 1;">সিঙ্গেল</button>
+                        <button onclick="toggleMode('multi')" id="mMulti" class="btn" style="flex: 1; background: var(--bg-card);">বাল্ক লিস্ট</button>
+                    </div>
+
+                    <div id="singleForm">
+                        <div class="form-group"><label>ব্যক্তির নাম</label><input type="text" id="sName"></div>
+                        <div class="form-group">
+                            <label>কারণ</label>
+                            <select id="sReason">
+                                <option value="Late All Done">Late All Done</option>
+                                <option value="Support Gap">Support Gap</option>
+                                <option value="Sticker / Emoji / NC">Sticker / Emoji / NC</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="submitSingle()">রিপোর্ট জমা দিন</button>
+                    </div>
+
+                    <div id="multiForm" class="hidden">
+                        <div class="form-group"><label>কারণ</label>
+                            <select id="mReason"><option value="Late All Done">Late All Done</option></select>
+                        </div>
+                        <div class="form-group"><label>লিস্ট পেস্ট করুন (@username 📌/16)</label>
+                            <textarea id="mList" rows="6"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="submitMulti()">সবগুলো জমা দিন</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="listSection" class="hidden">
+                <input type="text" id="search" placeholder="নাম লিখে সার্চ করুন..." class="form-group input" style="width: 100%; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); color: white; border-radius: 10px; margin-bottom: 20px;" onkeyup="renderReports()">
+                <div id="reportList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Initialization
+        const SUPABASE_URL = "https://xzgozwylnfpcicdipjhw.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_mjndYPAxtmjjMaGNpmDJWvfEiL6oSiWQxVYI-rs"; 
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const ADMINS = {
+            'shihab@linkbox.com': 'Md Shihab Khan',
+            'mamun@linkbox.com': 'Mamun Aravi',
+            'shuvo@linkbox.com': 'Shuvo Sutradhar',
+            'shadat@linkbox.com': 'ShaDat Hossain',
+            'rubel@linkbox.com': 'Ariyan Ahmed Rubel',
+            'mustakim@linkbox.com': 'MD Mustakim Islam',
+            'hanif@linkbox.com': 'Mohammad Abu Hanif'
+        };
+
+        let currentAdmin = null;
+        let reportsData = [];
+
+        // Auth Check
+        window.onload = async () => {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session && ADMINS[session.user.email]) {
+                startApp(session.user.email);
+            }
+        };
+
+        // Login Logic
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            toggleLoader(true);
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+
+            const { data, error } = await _supabase.auth.signInWithPassword({ email, password: pass });
+            
+            if (error) {
+                alert("ভুল ইমেইল বা পাসওয়ার্ড!");
+            } else if (!ADMINS[email]) {
+                alert("আপনি এডমিন নন!");
+                await _supabase.auth.signOut();
+            } else {
+                startApp(email);
+            }
+            toggleLoader(false);
+        };
+
+        function startApp(email) {
+            currentAdmin = ADMINS[email];
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('adminName').innerText = currentAdmin;
+            loadData();
+        }
+
+        async function loadData() {
+            const { data } = await _supabase.from('reports').select('*').order('created_at', { ascending: false });
+            reportsData = data || [];
+            renderReports();
+        }
+
+        // Submissions
+        async function submitSingle() {
+            const name = document.getElementById('sName').value;
+            const reason = document.getElementById('sReason').value;
+            if(!name) return alert("নাম লিখুন!");
+
+            toggleLoader(true);
+            const { error } = await _supabase.from('reports').insert([{
+                person_name: name, reason: reason, reported_by: currentAdmin, is_dismissed: false
+            }]);
+            
+            if(!error) {
+                toast("রিপোর্ট জমা হয়েছে!");
+                document.getElementById('sName').value = "";
+                loadData();
+            }
+            toggleLoader(false);
+        }
+
+        async function submitMulti() {
+            const list = document.getElementById('mList').value;
+            const reason = document.getElementById('mReason').value;
+            const lines = list.split('\n');
+            const toInsert = [];
+
+            lines.forEach(line => {
+                const match = line.match(/@([^@\s\n]+)/);
+                if (match) {
+                    let pin = line.includes('📌') ? "📌" + line.split('📌')[1].trim() : null;
+                    toInsert.push({
+                        person_name: match[1].trim(),
+                        reason: reason,
+                        link_number: pin,
+                        reported_by: currentAdmin
+                    });
+                }
+            });
+
+            if(toInsert.length > 0) {
+                toggleLoader(true);
+                await _supabase.from('reports').insert(toInsert);
+                toast(toInsert.length + " টি রিপোর্ট জমা হয়েছে!");
+                document.getElementById('mList').value = "";
+                loadData();
+                toggleLoader(false);
+            }
+        }
+
+        // UI Handlers
+        function renderReports() {
+            const listDiv = document.getElementById('reportList');
+            const search = document.getElementById('search').value.toLowerCase();
+            const isHistory = document.getElementById('tab3').classList.contains('active');
+            
+            listDiv.innerHTML = "";
+            reportsData.filter(r => {
+                const matchSearch = r.person_name.toLowerCase().includes(search);
+                return isHistory ? (r.is_dismissed && matchSearch) : (!r.is_dismissed && matchSearch);
+            }).forEach(r => {
+                listDiv.innerHTML += `
+                    <div class="report-card">
+                        <div class="card-header">
+                            <strong>${r.person_name}</strong>
+                            <span class="reason-tag">${r.reason}</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${r.link_number ? `<p style="color: #ff9f43;">${r.link_number}</p>` : ''}
+                            <p>এডমিন: ${r.reported_by}</p>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button onclick="updateStatus(${r.id}, ${!r.is_dismissed})" class="btn" style="background: var(--bg-card); font-size: 12px; padding: 8px;">
+                                ${r.is_dismissed ? 'Restore' : 'Dismiss'}
+                            </button>
+                            <button onclick="deleteReport(${r.id})" class="btn" style="background: rgba(255,71,87,0.1); color: var(--danger); font-size: 12px; padding: 8px;">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function updateStatus(id, status) {
+            await _supabase.from('reports').update({ is_dismissed: status }).eq('id', id);
+            loadData();
+        }
+
+        async function deleteReport(id) {
+            if(confirm("নিশ্চিত তো?")) {
+                await _supabase.from('reports').delete().eq('id', id);
+                loadData();
+            }
+        }
+
+        function switchTab(type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('submitSection').classList.add('hidden');
+            document.getElementById('listSection').classList.add('hidden');
+
+            if(type === 'submit') {
+                document.getElementById('tab1').classList.add('active');
+                document.getElementById('submitSection').classList.remove('hidden');
+            } else if(type === 'list') {
+                document.getElementById('tab2').classList.add('active');
+                document.getElementById('listSection').classList.remove('hidden');
+            } else {
+                document.getElementById('tab3').classList.add('active');
+                document.getElementById('listSection').classList.remove('hidden');
+            }
+            renderReports();
+        }
+
+        function toggleMode(m) {
+            document.getElementById('singleForm').classList.toggle('hidden', m === 'multi');
+            document.getElementById('multiForm').classList.toggle('hidden', m === 'single');
+            document.getElementById('mSingle').classList.toggle('btn-primary', m === 'single');
+            document.getElementById('mMulti').classList.toggle('btn-primary', m === 'multi');
+        }
+
+        function toggleLoader(s) { document.getElementById('loader').classList.toggle('hidden', !s); }
+        function toast(m) {
+            const t = document.createElement('div');
+            t.className = 'toast'; t.innerText = m;
+            document.getElementById('toastContainer').appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+        async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+    </script>
+</body>
+</html>
