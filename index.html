@@ -19,28 +19,35 @@
         .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3); }
         .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
         
-        /* Modal Style */
         #imgModal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 20px; }
         #imgModal img { max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: contain; }
         .close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; }
 
         header { background: var(--card); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .admin-badge { background: rgba(108, 92, 231, 0.2); color: #a29bfe; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
-        .stat-box { background: linear-gradient(135deg, var(--card) 0%, #1a1a30 100%); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Tabs & Active Count Badge */
         .tabs { display: flex; gap: 15px; margin: 20px 0; border-bottom: 1px solid var(--border); }
-        .tab { padding: 12px 20px; cursor: pointer; color: var(--muted); font-weight: 500; }
+        .tab { padding: 12px 10px; cursor: pointer; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 8px; }
         .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        .count-badge { background: var(--danger); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 800; }
+
         .form-card { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); }
         .form-row { margin-bottom: 15px; }
         .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 12px; background: #1a1a30; border: 1px solid var(--border); border-radius: 8px; color: white; outline: none; box-sizing: border-box; }
         
+        /* Big Search Box */
+        .search-container { margin-bottom: 25px; }
+        .search-container input { width: 100%; padding: 16px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; color: white; font-size: 16px; outline: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .search-container input:focus { border-color: var(--primary); box-shadow: 0 4px 20px rgba(108, 92, 231, 0.2); }
+
         .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .report-card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
-        .badge-reason { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: var(--primary); color: white; }
+        .badge-reason { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: var(--primary); color: white; height: fit-content; }
         .actions { margin-top: auto; display: flex; gap: 10px; border-top: 1px solid var(--border); padding-top: 15px; }
         
-        /* Red box for gap info */
         .gap-box { background: rgba(255, 71, 87, 0.15); color: #ff4757; padding: 10px; border-radius: 8px; border: 1px solid rgba(255, 71, 87, 0.3); font-weight: 600; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+        .pin-box { background: rgba(241, 196, 15, 0.1); color: #f1c40f; padding: 10px; border-radius: 8px; border: 1px solid rgba(241, 196, 15, 0.3); font-weight: 600; margin-bottom: 8px; font-size: 13px; }
 
         #loadingOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .spinner { width: 50px; height: 50px; border: 5px solid #1a1a30; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
@@ -90,17 +97,11 @@
         </header>
 
         <div class="container">
-            <div class="stat-box">
-                <div>
-                    <div style="color: var(--muted); font-size: 12px; text-transform: uppercase;">Active Reports</div>
-                    <div id="activeCount" style="font-size: 28px; font-weight: 800; color: var(--primary);">0</div>
-                </div>
-                <i class="fas fa-file-invoice" style="font-size: 30px; opacity: 0.2;"></i>
-            </div>
-
             <div class="tabs">
                 <div class="tab active" id="t-submit" onclick="switchTab('submit')">Submit</div>
-                <div class="tab" id="t-active" onclick="switchTab('active')">Active List</div>
+                <div class="tab" id="t-active" onclick="switchTab('active')">
+                    Active List <span id="activeCount" class="count-badge">0</span>
+                </div>
                 <div class="tab" id="t-dismissed" onclick="switchTab('dismissed')">History</div>
             </div>
 
@@ -133,21 +134,23 @@
                         <div class="form-row"><label style="font-size:12px; color:var(--muted)">Reports Date & Time</label><input type="datetime-local" id="mDate"></div>
                         <div class="form-row">
                             <select id="mReason">
-                                <option value="">Multiple  Reason...</option>
+                                <option value="">Multiple Reason...</option>
                                 <option>Support Incomplete</option>
                                 <option>Support Gap</option>
                                 <option>Sticker / Emoji / NC</option>
                             </select>
                         </div>
                         <div class="form-row"><textarea id="mList" rows="8" placeholder="Paste full list with @usernames here..."></textarea></div>
-                        <div class="form-row"><input type="file" id="mFile" accept="image/*"></div>
+                        <div class="form-row"><textarea id="mDesc" placeholder="Description for all (Optional)"></textarea></div>
                         <button class="btn btn-primary" style="width: 100%;" onclick="submitMulti()">Submit All Reports</button>
                     </div>
                 </div>
             </div>
 
             <div id="tabActive" class="tab-content hidden">
-                <input type="text" id="searchBox" placeholder="Search by name..." onkeyup="renderReports()" class="form-row" style="margin-bottom: 20px;">
+                <div class="search-container">
+                    <input type="text" id="searchBox" placeholder="🔍 Search member name..." onkeyup="renderReports()">
+                </div>
                 <div id="activeList" class="report-grid"></div>
             </div>
 
@@ -185,9 +188,8 @@
         function setDefaultDate() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            const dateStr = now.toISOString().slice(0, 16);
-            document.getElementById('sDate').value = dateStr;
-            document.getElementById('mDate').value = dateStr;
+            document.getElementById('sDate').value = now.toISOString().slice(0, 16);
+            document.getElementById('mDate').value = now.toISOString().slice(0, 16);
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -278,32 +280,22 @@
         async function submitMulti() {
             const text = document.getElementById('mList').value;
             const reason = document.getElementById('mReason').value;
+            const desc = document.getElementById('mDesc').value;
             const date = document.getElementById('mDate').value;
             if (!text || !reason) return showToast('Select Reason and Paste List!', 'error');
             toggleLoading(true);
-            const imgs = await uploadToImgBB('mFile');
             const lines = text.split('\n');
             const rows = [];
             
             lines.forEach(line => {
-                // regex logic to split name and gap info
-                const match = line.match(/@(.+?)(সাপোর্ট গ্যাপ.*)/);
-                if (match) {
-                    let mName = match[1].trim();
-                    let extraInfo = match[2].trim();
+                const nameMatch = line.match(/@(.+?)(?=📌|সাপোর্ট গ্যাপ|$)/);
+                if (nameMatch) {
+                    const mName = nameMatch[1].trim();
+                    const extraInfo = line.split(mName)[1]?.trim() || "";
                     rows.push({
-                        name: mName, reason, screenshots: imgs,
+                        name: mName, reason: reason, description: desc,
                         admin_name: currentUser.name, link_number: extraInfo, created_at: new Date(date).toISOString()
                     });
-                } else {
-                    // fall back for lines without "সাপোর্ট গ্যাপ" keyword
-                    const simpleMatch = line.match(/@([^📌\n ]+)(.*)/);
-                    if (simpleMatch) {
-                        rows.push({
-                            name: simpleMatch[1].trim(), reason, screenshots: imgs,
-                            admin_name: currentUser.name, link_number: simpleMatch[2].trim(), created_at: new Date(date).toISOString()
-                        });
-                    }
                 }
             });
             
@@ -311,7 +303,7 @@
             const { error } = await supabaseClient.from('reports').insert(rows);
             toggleLoading(false);
             if (error) showToast(error.message, 'error');
-            else { showToast(rows.length + ' Reports Saved!'); document.getElementById('mList').value = ''; setDefaultDate(); }
+            else { showToast(rows.length + ' Reports Saved!'); document.getElementById('mList').value = ''; document.getElementById('mDesc').value = ''; setDefaultDate(); }
         }
 
         async function loadReports() {
@@ -333,46 +325,38 @@
                 const card = document.createElement('div');
                 card.className = 'report-card';
                 
-                let imgHtml = '';
-                if (r.screenshots && r.screenshots.length > 0) {
-                    imgHtml = `
+                let imgHtml = (r.screenshots && r.screenshots.length > 0) ? `
                     <div style="margin-top:5px;">
                         <img src="${r.screenshots[0]}" onclick="openModal('${r.screenshots[0]}')" style="width:100%; max-height:120px; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer;">
-                    </div>`;
-                }
+                    </div>` : '';
 
                 let descHtml = r.description ? `<p style="margin:5px 0; padding:8px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:12px; border-left:2px solid var(--primary); color:#ddd; font-style:italic;">"${r.description}"</p>` : '';
 
-                // Detect if it's a "সাপোর্ট গ্যাপ" type to show red box
                 let infoHtml = '';
-                if (r.link_number && r.link_number.includes('সাপোর্ট গ্যাপ')) {
-                    infoHtml = `<div class="gap-box">${r.link_number}</div>`;
-                } else if (r.link_number) {
-                    infoHtml = `<div style="color:#f1c40f; margin-bottom:8px; font-weight:500; font-size:13px;">${r.link_number}</div>`;
+                if (r.link_number) {
+                    infoHtml = r.link_number.includes('সাপোর্ট গ্যাপ') ? 
+                        `<div class="gap-box">${r.link_number}</div>` : 
+                        `<div class="pin-box">${r.link_number}</div>`;
                 }
 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <span style="font-weight:700; color:white; font-size:17px; line-height:1.3; flex: 1; margin-right: 10px;">${r.name}</span>
+                        <span style="font-weight:700; color:white; font-size:18px; line-height:1.2; flex: 1; margin-right: 10px; word-break: break-word;">${r.name}</span>
                         <span class="badge-reason">${r.reason}</span>
                     </div>
-                    
                     <div style="background:rgba(0,0,0,0.25); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
-                        ${infoHtml}
-                        ${descHtml}
+                        ${infoHtml} ${descHtml}
                         <div style="display:flex; flex-direction:column; gap:4px; color:var(--muted); font-size:11px; margin-top:5px;">
                             <span><i class="fas fa-user-shield" style="width:16px;"></i> ${r.admin_name}</span>
                             <span><i class="fas fa-calendar-alt" style="width:16px;"></i> ${new Date(r.created_at).toLocaleString('bn-BD')}</span>
                         </div>
                         ${imgHtml}
                     </div>
-
                     <div class="actions">
                         <button class="btn" style="flex:1; background:#1a1a30; color:var(--success)" onclick="updateStatus(${r.id}, ${!r.dismissed})">${r.dismissed ? 'Restore' : 'Dismiss'}</button>
                         <button class="btn" style="background:rgba(255, 71, 87, 0.1); color:var(--danger)" onclick="deleteRep(${r.id})"><i class="fas fa-trash"></i></button>
-                    </div>
-                `;
-                if (r.dismissed) dis.appendChild(card); else act.appendChild(card);
+                    </div>`;
+                r.dismissed ? dis.appendChild(card) : act.appendChild(card);
             });
             document.getElementById('activeCount').innerText = activeCount;
         }
@@ -383,4 +367,4 @@
         function showToast(m, type) { const t = document.createElement('div'); t.className = 'toast'; if(type === 'error') t.style.borderLeftColor = 'var(--danger)'; t.innerText = m; document.getElementById('toastContainer').appendChild(t); setTimeout(() => t.remove(), 3000); }
     </script>
 </body>
-    </html>
+</html>
